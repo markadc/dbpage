@@ -9,3 +9,5 @@ dist/
 build/
 init.json
 .DS_Store
+.vscode/
+.idea/
