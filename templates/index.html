@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DBPage</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header>
+        <div class="brand">DBPage</div>
+    </header>
+    <main>
+        <!-- 连接卡片页面 -->
+        <div id="connections-view">
+            <div class="view-header">
+                <h2>数据库连接</h2>
+                <button id="btn-add-conn" class="btn-primary" style="width:auto; padding: 9px 20px;">+ 新建连接</button>
+            </div>
+            <div id="conn-cards" class="cards-grid"></div>
+        </div>
+
+        <!-- 数据浏览页面 -->
+        <div id="data-view" class="hidden">
+            <div class="view-header">
+                <button id="btn-back" class="btn-secondary">← 返回连接列表</button>
+                <div class="toolbar-inline">
+                    <button id="btn-new-query" class="btn-secondary">+ 新建查询</button>
+                    <select id="db-select">
+                        <option value="">选择数据库</option>
+                    </select>
+                    <select id="table-select">
+                        <option value="">选择表</option>
+                    </select>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table id="data-table">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="pagination hidden" id="pagination">
+                <div class="page-info">
+                    第 <span id="page-num">1</span> / <span id="page-total">1</span> 页
+                    共 <span id="row-total">0</span> 条
+                </div>
+                <div class="page-pills" id="page-pills">
+                  <button type="button" id="btn-first" aria-label="首页">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>
+                  </button>
+                  <button type="button" id="btn-prev" aria-label="上一页">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                  </button>
+                  <div class="page-numbers" id="page-numbers"></div>
+                  <button type="button" id="btn-next" aria-label="下一页">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  </button>
+                  <button type="button" id="btn-last" aria-label="尾页">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m13 17 5-5-5-5"/><path d="m6 17 5-5-5-5"/></svg>
+                  </button>
+                </div>
+                <div class="page-size">
+                    <label>每页</label>
+                    <select id="page-size">
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="500">500</option>
+                    </select>
+                    <label>条</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- SQL 查询页面 -->
+        <div id="sql-view" class="hidden">
+            <div class="view-header">
+                <button id="btn-back-data" class="btn-secondary">← 返回数据浏览</button>
+                <div class="toolbar-inline">
+                    <select id="sql-db-select">
+                        <option value="">选择数据库</option>
+                    </select>
+                </div>
+            </div>
+            <div class="sql-panel">
+                <div class="sql-toolbar">
+                    <label>SQL Execute</label>
+                    <button id="btn-run-sql" class="btn-primary" style="width:auto; padding: 8px 18px;">▶ 执行</button>
+                </div>
+                <textarea id="sql-input" placeholder="SELECT * FROM ..." spellcheck="false"></textarea>
+                <div id="sql-error" class="sql-error hidden"></div>
+            </div>
+            <div class="table-wrap">
+                <table id="sql-result-table">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 连接编辑弹窗 -->
+        <div id="conn-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3 id="modal-title">新建连接</h3>
+                <input type="hidden" id="modal-conn-id">
+                <div class="field">
+                    <label>连接名称</label>
+                    <input type="text" id="modal-name" placeholder="例如：生产环境">
+                </div>
+                <div class="field">
+                    <label>数据库类型</label>
+                    <select id="modal-type">
+                        <option value="postgresql">PostgreSQL</option>
+                        <option value="mysql">MySQL</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>主机</label>
+                    <input type="text" id="modal-host" placeholder="localhost">
+                </div>
+                <div class="field">
+                    <label>端口</label>
+                    <input type="number" id="modal-port" placeholder="5432">
+                </div>
+                <div class="field">
+                    <label>用户名</label>
+                    <input type="text" id="modal-user" placeholder="postgres">
+                </div>
+                <div class="field">
+                    <label>密码</label>
+                    <input type="password" id="modal-password">
+                </div>
+                <div class="modal-actions">
+                    <button id="btn-save-conn" class="btn-primary">保存</button>
+                    <button id="btn-cancel-conn" class="btn-secondary">取消</button>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="/static/js/app.js?v=3"></script>
+</body>
+</html>
