@@ -2,6 +2,7 @@ let state = { db: '', table: '', page: 1, size: 10, total: 0, pages: 1 };
 let connections = [];
 let currentConnId = null;
 let currentConnType = 'postgresql';
+let initData = {};
 
 async function fetchJSON(url, opts) {
     const r = await fetch(url, opts);
@@ -59,6 +60,10 @@ async function useConnection(id) {
     const conn = connections.find(c => c.id === id);
     currentConnType = conn?.type || 'postgresql';
     showDataView();
+    const hist = initData.states?.[id] || {};
+    if (hist.sql) document.getElementById('sql-input').value = hist.sql;
+    state.db = hist.db || '';
+    state.table = hist.table || '';
     await loadDatabases();
     await loadTables();
     await loadData();
@@ -245,6 +250,25 @@ async function loadSqlDatabases() {
     }
 }
 
+async function saveState() {
+    const body = new URLSearchParams();
+    if (state.db) body.append('db', state.db);
+    if (state.table) body.append('table', state.table);
+    const sql = document.getElementById('sql-input').value.trim();
+    if (sql) body.append('sql', sql);
+    try {
+        await fetchJSON('/api/state', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+        if (!initData.states) initData.states = {};
+        initData.states[currentConnId] = {
+            db: state.db || null,
+            table: state.table || null,
+            sql: sql || null
+        };
+    } catch (e) {
+        console.error('保存状态失败:', e);
+    }
+}
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -252,6 +276,7 @@ function escapeHtml(text) {
 }
 
 /* ===== 事件绑定 ===== */
+document.querySelector('.brand').addEventListener('click', showConnectionsView);
 document.getElementById('btn-add-conn').addEventListener('click', openAddModal);
 document.getElementById('btn-cancel-conn').addEventListener('click', closeModal);
 document.getElementById('btn-save-conn').addEventListener('click', saveModal);
@@ -272,12 +297,14 @@ document.getElementById('db-select').addEventListener('change', async (e) => {
     }
     await loadTables();
     await loadData();
+    await saveState();
 });
 
 document.getElementById('table-select').addEventListener('change', async (e) => {
     state.table = e.target.value;
     state.page = 1;
     await loadData();
+    await saveState();
 });
 
 document.getElementById('page-size').addEventListener('change', async (e) => {
@@ -293,7 +320,10 @@ document.getElementById('btn-last').addEventListener('click', async () => { if (
 
 document.getElementById('btn-new-query').addEventListener('click', () => {
     showSqlView();
-    if (state.table) {
+    const hist = initData.states?.[currentConnId] || {};
+    if (hist.sql) {
+        document.getElementById('sql-input').value = hist.sql;
+    } else if (state.table) {
         const q = currentConnType === 'mysql' ? `\`${state.table}\`` : `"${state.table}"`;
         document.getElementById('sql-input').value = `SELECT * FROM ${q} LIMIT 10`;
     } else {
@@ -305,8 +335,9 @@ document.getElementById('btn-back-data').addEventListener('click', () => {
     showDataView();
 });
 
-document.getElementById('sql-db-select').addEventListener('change', (e) => {
+document.getElementById('sql-db-select').addEventListener('change', async (e) => {
     state.db = e.target.value;
+    await saveState();
 });
 
 document.getElementById('btn-run-sql').addEventListener('click', async () => {
@@ -329,6 +360,7 @@ document.getElementById('btn-run-sql').addEventListener('click', async () => {
             thead.innerHTML = '';
             tbody.innerHTML = `<tr><td colspan="100" class="empty">执行成功，影响 ${data.rowcount} 行</td></tr>`;
         }
+        await saveState();
     } catch (err) {
         errorEl.textContent = err.message;
         errorEl.classList.remove('hidden');
@@ -336,4 +368,8 @@ document.getElementById('btn-run-sql').addEventListener('click', async () => {
 });
 
 /* ===== 初始化 ===== */
-loadConnections();
+async function init() {
+    await loadConnections();
+    initData = await fetchJSON('/api/init');
+}
+init();

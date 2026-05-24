@@ -240,20 +240,20 @@
         "documentation": {}
     },
     {
-        "label": "load_connections",
+        "label": "load_init",
         "kind": 2,
         "importPath": "main",
         "description": "main",
-        "peekOfCode": "def load_connections():\n    if not os.path.exists(CONNECTIONS_FILE):\n        return []\n    with open(CONNECTIONS_FILE, \"r\", encoding=\"utf-8\") as f:\n        return json.load(f)\ndef save_connections(conns):\n    with open(CONNECTIONS_FILE, \"w\", encoding=\"utf-8\") as f:\n        json.dump(conns, f, ensure_ascii=False, indent=2)\ndef get_db_connection(conn_type, host, port, user, password, dbname=None):\n    if conn_type == \"mysql\":",
+        "peekOfCode": "def load_init():\n    if not os.path.exists(INIT_FILE):\n        return {\"connections\": [], \"states\": {}}\n    with open(INIT_FILE, \"r\", encoding=\"utf-8\") as f:\n        data = json.load(f)\n    if \"states\" not in data:\n        data[\"states\"] = {}\n        # 迁移旧格式\n        old_conn_id = data.pop(\"last_conn_id\", None)\n        if old_conn_id:",
         "detail": "main",
         "documentation": {}
     },
     {
-        "label": "save_connections",
+        "label": "save_init",
         "kind": 2,
         "importPath": "main",
         "description": "main",
-        "peekOfCode": "def save_connections(conns):\n    with open(CONNECTIONS_FILE, \"w\", encoding=\"utf-8\") as f:\n        json.dump(conns, f, ensure_ascii=False, indent=2)\ndef get_db_connection(conn_type, host, port, user, password, dbname=None):\n    if conn_type == \"mysql\":\n        kwargs = dict(host=host, port=port, user=user, password=password, cursorclass=DictCursor)\n        if dbname:\n            kwargs[\"database\"] = dbname\n        return pymysql.connect(**kwargs)\n    return psycopg2.connect(",
+        "peekOfCode": "def save_init(data):\n    with open(INIT_FILE, \"w\", encoding=\"utf-8\") as f:\n        json.dump(data, f, ensure_ascii=False, indent=2)\ndef get_db_connection(conn_type, host, port, user, password, dbname=None):\n    if conn_type == \"mysql\":\n        kwargs = dict(host=host, port=port, user=user, password=password, cursorclass=DictCursor)\n        if dbname:\n            kwargs[\"database\"] = dbname\n        return pymysql.connect(**kwargs)\n    return psycopg2.connect(",
         "detail": "main",
         "documentation": {}
     },
@@ -280,7 +280,7 @@
         "kind": 2,
         "importPath": "main",
         "description": "main",
-        "peekOfCode": "def quote_identifier(conn_type, name):\n    if conn_type == \"mysql\":\n        return f\"`{name}`\"\n    return f'\"{name}\"'\n@app.get(\"/\", response_class=HTMLResponse)\nasync def root(request: Request):\n    return templates.TemplateResponse(\"index.html\", {\"request\": request})\n@app.get(\"/api/connections\")\nasync def list_connections():\n    return {\"connections\": load_connections()}",
+        "peekOfCode": "def quote_identifier(conn_type, name):\n    if conn_type == \"mysql\":\n        return f\"`{name}`\"\n    return f'\"{name}\"'\n@app.get(\"/\", response_class=HTMLResponse)\nasync def root(request: Request):\n    return templates.TemplateResponse(\"index.html\", {\"request\": request})\n@app.get(\"/api/init\")\nasync def get_init():\n    return load_init()",
         "detail": "main",
         "documentation": {}
     },
@@ -289,7 +289,7 @@
         "kind": 5,
         "importPath": "main",
         "description": "main",
-        "peekOfCode": "app = FastAPI(title=\"DBPage\")\napp.add_middleware(SessionMiddleware, secret_key=\"dbpage-secret-key-2024\")\napp.mount(\"/static\", StaticFiles(directory=\"static\"), name=\"static\")\ntemplates = Jinja2Templates(directory=\"templates\")\nCONNECTIONS_FILE = \"connections.json\"\ndef load_connections():\n    if not os.path.exists(CONNECTIONS_FILE):\n        return []\n    with open(CONNECTIONS_FILE, \"r\", encoding=\"utf-8\") as f:\n        return json.load(f)",
+        "peekOfCode": "app = FastAPI(title=\"DBPage\")\napp.add_middleware(SessionMiddleware, secret_key=\"dbpage-secret-key-2024\")\napp.mount(\"/static\", StaticFiles(directory=\"static\"), name=\"static\")\ntemplates = Jinja2Templates(directory=\"templates\")\nINIT_FILE = \"init.json\"\ndef load_init():\n    if not os.path.exists(INIT_FILE):\n        return {\"connections\": [], \"states\": {}}\n    with open(INIT_FILE, \"r\", encoding=\"utf-8\") as f:\n        data = json.load(f)",
         "detail": "main",
         "documentation": {}
     },
@@ -298,16 +298,16 @@
         "kind": 5,
         "importPath": "main",
         "description": "main",
-        "peekOfCode": "templates = Jinja2Templates(directory=\"templates\")\nCONNECTIONS_FILE = \"connections.json\"\ndef load_connections():\n    if not os.path.exists(CONNECTIONS_FILE):\n        return []\n    with open(CONNECTIONS_FILE, \"r\", encoding=\"utf-8\") as f:\n        return json.load(f)\ndef save_connections(conns):\n    with open(CONNECTIONS_FILE, \"w\", encoding=\"utf-8\") as f:\n        json.dump(conns, f, ensure_ascii=False, indent=2)",
+        "peekOfCode": "templates = Jinja2Templates(directory=\"templates\")\nINIT_FILE = \"init.json\"\ndef load_init():\n    if not os.path.exists(INIT_FILE):\n        return {\"connections\": [], \"states\": {}}\n    with open(INIT_FILE, \"r\", encoding=\"utf-8\") as f:\n        data = json.load(f)\n    if \"states\" not in data:\n        data[\"states\"] = {}\n        # 迁移旧格式",
         "detail": "main",
         "documentation": {}
     },
     {
-        "label": "CONNECTIONS_FILE",
+        "label": "INIT_FILE",
         "kind": 5,
         "importPath": "main",
         "description": "main",
-        "peekOfCode": "CONNECTIONS_FILE = \"connections.json\"\ndef load_connections():\n    if not os.path.exists(CONNECTIONS_FILE):\n        return []\n    with open(CONNECTIONS_FILE, \"r\", encoding=\"utf-8\") as f:\n        return json.load(f)\ndef save_connections(conns):\n    with open(CONNECTIONS_FILE, \"w\", encoding=\"utf-8\") as f:\n        json.dump(conns, f, ensure_ascii=False, indent=2)\ndef get_db_connection(conn_type, host, port, user, password, dbname=None):",
+        "peekOfCode": "INIT_FILE = \"init.json\"\ndef load_init():\n    if not os.path.exists(INIT_FILE):\n        return {\"connections\": [], \"states\": {}}\n    with open(INIT_FILE, \"r\", encoding=\"utf-8\") as f:\n        data = json.load(f)\n    if \"states\" not in data:\n        data[\"states\"] = {}\n        # 迁移旧格式\n        old_conn_id = data.pop(\"last_conn_id\", None)",
         "detail": "main",
         "documentation": {}
     }

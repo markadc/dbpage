@@ -15,19 +15,30 @@ app.add_middleware(SessionMiddleware, secret_key="dbpage-secret-key-2024")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-CONNECTIONS_FILE = "connections.json"
+INIT_FILE = "init.json"
 
 
-def load_connections():
-    if not os.path.exists(CONNECTIONS_FILE):
-        return []
-    with open(CONNECTIONS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+def load_init():
+    if not os.path.exists(INIT_FILE):
+        return {"connections": [], "states": {}}
+    with open(INIT_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if "states" not in data:
+        data["states"] = {}
+        # 迁移旧格式
+        old_conn_id = data.pop("last_conn_id", None)
+        if old_conn_id:
+            data["states"][old_conn_id] = {
+                "db": data.pop("last_db", None),
+                "table": data.pop("last_table", None),
+                "sql": data.pop("last_sql", None),
+            }
+    return data
 
 
-def save_connections(conns):
-    with open(CONNECTIONS_FILE, "w", encoding="utf-8") as f:
-        json.dump(conns, f, ensure_ascii=False, indent=2)
+def save_init(data):
+    with open(INIT_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 def get_db_connection(conn_type, host, port, user, password, dbname=None):
@@ -67,9 +78,14 @@ async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+@app.get("/api/init")
+async def get_init():
+    return load_init()
+
+
 @app.get("/api/connections")
 async def list_connections():
-    return {"connections": load_connections()}
+    return {"connections": load_init()["connections"]}
 
 
 @app.post("/api/connections")
@@ -81,10 +97,12 @@ async def create_connection(
     user: str = Form(...),
     password: str = Form(...),
 ):
-    conns = load_connections()
+    data = load_init()
+    conns = data["connections"]
     new_id = str(max([int(c["id"]) for c in conns if c["id"].isdigit()], default=0) + 1)
     conns.append({"id": new_id, "name": name, "type": conn_type, "host": host, "port": port, "user": user, "password": password})
-    save_connections(conns)
+    data["connections"] = conns
+    save_init(data)
     return {"success": True, "id": new_id}
 
 
@@ -98,27 +116,29 @@ async def update_connection(
     user: str = Form(...),
     password: str = Form(...),
 ):
-    conns = load_connections()
+    data = load_init()
+    conns = data["connections"]
     for c in conns:
         if c["id"] == conn_id:
             c.update({"name": name, "type": conn_type, "host": host, "port": port, "user": user, "password": password})
-            save_connections(conns)
+            data["connections"] = conns
+            save_init(data)
             return {"success": True}
     raise HTTPException(status_code=404, detail="连接不存在")
 
 
 @app.delete("/api/connections/{conn_id}")
 async def delete_connection(conn_id: str):
-    conns = load_connections()
-    conns = [c for c in conns if c["id"] != conn_id]
-    save_connections(conns)
+    data = load_init()
+    data["connections"] = [c for c in data["connections"] if c["id"] != conn_id]
+    save_init(data)
     return {"success": True}
 
 
 @app.post("/api/connections/{conn_id}/use")
 async def use_connection(request: Request, conn_id: str):
-    conns = load_connections()
-    conn = next((c for c in conns if c["id"] == conn_id), None)
+    data = load_init()
+    conn = next((c for c in data["connections"] if c["id"] == conn_id), None)
     if not conn:
         raise HTTPException(status_code=404, detail="连接不存在")
     try:
@@ -136,6 +156,26 @@ async def use_connection(request: Request, conn_id: str):
     request.session["db_port"] = conn["port"]
     request.session["db_user"] = conn["user"]
     request.session["db_password"] = conn["password"]
+    save_init(data)
+    return {"success": True}
+
+
+@app.post("/api/state")
+async def save_state(request: Request, db: str = Form(None), table: str = Form(None), sql: str = Form(None)):
+    conn_id = request.session.get("conn_id")
+    if not conn_id:
+        raise HTTPException(status_code=400, detail="未选择连接")
+    data = load_init()
+    if conn_id not in data["states"]:
+        data["states"][conn_id] = {}
+    st = data["states"][conn_id]
+    if db is not None:
+        st["db"] = db
+    if table is not None:
+        st["table"] = table
+    if sql is not None:
+        st["sql"] = sql
+    save_init(data)
     return {"success": True}
 
 
@@ -229,10 +269,7 @@ async def execute_query(request: Request, db: str = Form(...), sql: str = Form(.
                     "rowcount": len(rows),
                 }
             else:
-                if params["conn_type"] == "postgresql":
-                    conn.commit()
-                else:
-                    conn.commit()
+                conn.commit()
                 return {"columns": [], "data": [], "rowcount": cur.rowcount}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
