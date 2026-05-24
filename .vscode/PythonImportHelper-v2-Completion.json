@@ -289,7 +289,7 @@
         "kind": 5,
         "importPath": "main",
         "description": "main",
-        "peekOfCode": "app = FastAPI(title=\"DBPage\")\napp.add_middleware(SessionMiddleware, secret_key=\"dbpage-secret-key-2024\")\napp.mount(\"/static\", StaticFiles(directory=\"static\"), name=\"static\")\ntemplates = Jinja2Templates(directory=\"templates\")\nINIT_FILE = \"init.json\"\ndef load_init():\n    if not os.path.exists(INIT_FILE):\n        return {\"connections\": [], \"states\": {}}\n    with open(INIT_FILE, \"r\", encoding=\"utf-8\") as f:\n        data = json.load(f)",
+        "peekOfCode": "app = FastAPI(title=\"DBPage\")\napp.add_middleware(SessionMiddleware, secret_key=\"dbpage-secret-key-2026\")\napp.mount(\"/static\", StaticFiles(directory=\"static\"), name=\"static\")\ntemplates = Jinja2Templates(directory=\"templates\")\nINIT_FILE = \"init.json\"\ndef load_init():\n    if not os.path.exists(INIT_FILE):\n        return {\"connections\": [], \"states\": {}}\n    with open(INIT_FILE, \"r\", encoding=\"utf-8\") as f:\n        data = json.load(f)",
         "detail": "main",
         "documentation": {}
     },

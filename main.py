@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 app = FastAPI(title="DBPage")
-app.add_middleware(SessionMiddleware, secret_key="dbpage-secret-key-2024")
+app.add_middleware(SessionMiddleware, secret_key="dbpage-secret-key-2026")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
@@ -142,11 +142,7 @@ async def use_connection(request: Request, conn_id: str):
     if not conn:
         raise HTTPException(status_code=404, detail="连接不存在")
     try:
-        db = get_db_connection(
-            conn.get("type", "postgresql"),
-            conn["host"], conn["port"], conn["user"], conn["password"],
-            dbname=None
-        )
+        db = get_db_connection(conn.get("type", "postgresql"), conn["host"], conn["port"], conn["user"], conn["password"], dbname=None)
         db.close()
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -193,9 +189,7 @@ async def list_databases(request: Request):
                 exclude = {"information_schema", "mysql", "performance_schema", "sys"}
                 return {"databases": [r.get("Database") or r.get("database") for r in rows if (r.get("Database") or r.get("database")) not in exclude]}
             else:
-                cur.execute(
-                    "SELECT datname FROM pg_database WHERE datistemplate = false AND datallowconn = true ORDER BY datname"
-                )
+                cur.execute("SELECT datname FROM pg_database WHERE datistemplate = false AND datallowconn = true ORDER BY datname")
                 rows = cur.fetchall()
                 return {"databases": [r["datname"] for r in rows]}
     finally:
@@ -213,9 +207,7 @@ async def list_tables(request: Request, db: str = Query(...)):
                 rows = cur.fetchall()
                 return {"tables": [list(r.values())[0] for r in rows]}
             else:
-                cur.execute(
-                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
-                )
+                cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name")
                 rows = cur.fetchall()
                 return {"tables": [r["table_name"] for r in rows]}
     finally:
@@ -279,4 +271,5 @@ async def execute_query(request: Request, db: str = Form(...), sql: str = Form(.
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -100,7 +100,7 @@ header {
   z-index: 10;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
-.brand { font-size: 20px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; }
+.brand { font-size: 20px; font-weight: 800; color: var(--primary); letter-spacing: -0.5px; cursor: pointer; }
 header nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.15s; }
 header nav a:hover { color: var(--primary); }
 
