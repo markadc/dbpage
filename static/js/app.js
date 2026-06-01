@@ -485,7 +485,8 @@ document.getElementById('btn-run-sql').addEventListener('click', async () => {
         const tbody = document.querySelector('#sql-result-table tbody');
         if (data.columns.length) {
             thead.innerHTML = '<tr>' + data.columns.map(c => `<th>${escapeHtml(c)}</th>`).join('') + '</tr>';
-            tbody.innerHTML = data.data.map(row => '<tr>' + data.columns.map(c => `<td>${escapeHtml(String(row[c] ?? ''))}</td>`).join('') + '</tr>').join('');
+            tbody.innerHTML = data.data.map(row => '<tr>' + data.columns.map(c => `<td class="copyable-cell">${escapeHtml(String(row[c] ?? ''))}</td>`).join('') + '</tr>').join('');
+            tbody.querySelectorAll('td').forEach(td => td.addEventListener('click', () => copyCell(td)));
         } else {
             thead.innerHTML = '';
             tbody.innerHTML = `<tr><td colspan="100" class="empty">执行成功，影响 ${data.rowcount} 行</td></tr>`;

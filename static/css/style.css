@@ -197,6 +197,8 @@ tbody td { border-bottom: 1px solid var(--border); color: #334155; font-size: 13
 tbody tr:last-child td { border-bottom: none; }
 .editable-cell { cursor: pointer; transition: background 0.12s; position: relative; }
 .editable-cell:hover { background: #dbeafe; }
+.copyable-cell { cursor: pointer; transition: background 0.12s; }
+.copyable-cell:hover { background: #dbeafe; }
 .cell-editor {
   position: absolute;
   top: 0;
