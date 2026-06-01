@@ -75,7 +75,7 @@ def quote_identifier(conn_type, name):
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request, "index.html")
 
 
 @app.get("/api/init")
@@ -272,4 +272,4 @@ async def execute_query(request: Request, db: str = Form(...), sql: str = Form(.
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=22001)
