@@ -203,6 +203,7 @@ async function loadData() {
                 td.dataset.pk = String(pkVal ?? '');
                 td.dataset.col = data.columns[colIdx];
                 td.addEventListener('dblclick', () => startEdit(td, state.db, state.table, pkColumn));
+                td.addEventListener('click', () => { if (!td.querySelector('input')) copyCell(td); });
             });
         });
     }
@@ -379,6 +380,29 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+async function copyCell(td) {
+    const text = td.textContent;
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast('已复制');
+    } catch (err) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast('已复制');
+    }
+}
+
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 1500);
 }
 
 /* ===== 事件绑定 ===== */
