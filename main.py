@@ -245,6 +245,32 @@ async def get_data(
         conn.close()
 
 
+@app.put("/api/data")
+async def update_data(
+    request: Request,
+    db: str = Form(...),
+    table: str = Form(...),
+    pk_col: str = Form(...),
+    pk_val: str = Form(...),
+    column: str = Form(...),
+    value: str = Form(...),
+):
+    params = get_conn_params(request)
+    conn = get_db_connection(**params, dbname=db)
+    try:
+        with conn.cursor() as cur:
+            q_table = quote_identifier(params["conn_type"], table)
+            q_col = quote_identifier(params["conn_type"], column)
+            q_pk_col = quote_identifier(params["conn_type"], pk_col)
+            cur.execute(f"UPDATE {q_table} SET {q_col} = %s WHERE {q_pk_col} = %s", (value, pk_val))
+            conn.commit()
+            return {"success": True, "rowcount": cur.rowcount}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+
 @app.post("/api/query")
 async def execute_query(request: Request, db: str = Form(...), sql: str = Form(...)):
     params = get_conn_params(request)

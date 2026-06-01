@@ -46,10 +46,11 @@ function renderCards() {
             await useConnection(id);
         });
         card.querySelector('.edit').addEventListener('click', () => openEditModal(id));
-        card.querySelector('.delete').addEventListener('click', async () => {
-            if (!confirm('确定删除此连接？')) return;
-            await fetchJSON(`/api/connections/${id}`, { method: 'DELETE' });
-            await loadConnections();
+        card.querySelector('.delete').addEventListener('click', () => {
+            showConfirm('确定删除此连接？', async () => {
+                await fetchJSON(`/api/connections/${id}`, { method: 'DELETE' });
+                await loadConnections();
+            });
         });
     });
 }
@@ -194,7 +195,16 @@ async function loadData() {
     if (!data.data.length) {
         tbody.innerHTML = '<tr><td colspan="100" class="empty">暂无数据</td></tr>';
     } else {
-        tbody.innerHTML = data.data.map(row => '<tr>' + data.columns.map(c => `<td>${escapeHtml(String(row[c] ?? ''))}</td>`).join('') + '</tr>').join('');
+        const pkColumn = data.columns[0];
+        tbody.innerHTML = data.data.map(row => '<tr>' + data.columns.map(c => `<td class="editable-cell">${escapeHtml(String(row[c] ?? ''))}</td>`).join('') + '</tr>').join('');
+        tbody.querySelectorAll('tr').forEach((tr, rowIdx) => {
+            const pkVal = data.data[rowIdx][pkColumn];
+            tr.querySelectorAll('td').forEach((td, colIdx) => {
+                td.dataset.pk = String(pkVal ?? '');
+                td.dataset.col = data.columns[colIdx];
+                td.addEventListener('dblclick', () => startEdit(td, state.db, state.table, pkColumn));
+            });
+        });
     }
     state.total = data.total;
     state.pages = data.pages;
@@ -204,6 +214,102 @@ async function loadData() {
     renderPageNumbers();
     pagination.classList.remove('hidden');
 }
+
+async function startEdit(td, db, table, pkColumn) {
+    if (td.querySelector('input')) return;
+    const originalValue = td.textContent;
+    const pk = td.dataset.pk;
+    const col = td.dataset.col;
+    const tableEl = document.getElementById('data-table');
+    const colIndex = Array.from(td.parentNode.children).indexOf(td);
+    const th = tableEl.querySelectorAll('thead th')[colIndex];
+    const tdRect = td.getBoundingClientRect();
+    td.style.width = tdRect.width + 'px';
+    td.style.height = tdRect.height + 'px';
+    const thWidth = th ? th.getBoundingClientRect().width : tdRect.width;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = originalValue;
+    input.className = 'cell-editor';
+    input.style.width = thWidth + 'px';
+    td.innerHTML = '';
+    td.appendChild(input);
+    input.focus();
+    input.select();
+    const restore = (val) => {
+        td.textContent = val;
+        td.style.width = '';
+        td.style.height = '';
+    };
+    const save = () => {
+        const newValue = input.value;
+        if (newValue === originalValue) {
+            restore(originalValue);
+            return;
+        }
+        showConfirm('内容已修改，是否保存？', async () => {
+            try {
+                const body = new URLSearchParams();
+                body.append('db', db);
+                body.append('table', table);
+                body.append('pk_col', pkColumn);
+                body.append('pk_val', pk);
+                body.append('column', col);
+                body.append('value', newValue);
+                await fetchJSON('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+                restore(newValue);
+            } catch (err) {
+                showAlert('保存失败: ' + err.message);
+                restore(originalValue);
+            }
+        }, () => {
+            restore(originalValue);
+        });
+    };
+    const cancel = () => { restore(originalValue); };
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { input.blur(); }
+        else if (e.key === 'Escape') { cancel(); }
+    });
+}
+
+let confirmYesCallback = null;
+let confirmNoCallback = null;
+
+function showConfirm(message, onYes, onNo) {
+    document.getElementById('confirm-message').textContent = message;
+    document.getElementById('btn-confirm-yes').classList.remove('hidden');
+    document.getElementById('btn-confirm-no').classList.remove('hidden');
+    document.getElementById('btn-confirm-ok').classList.add('hidden');
+    document.getElementById('custom-confirm').classList.remove('hidden');
+    confirmYesCallback = onYes;
+    confirmNoCallback = onNo;
+}
+
+function showAlert(message) {
+    document.getElementById('confirm-message').textContent = message;
+    document.getElementById('btn-confirm-yes').classList.add('hidden');
+    document.getElementById('btn-confirm-no').classList.add('hidden');
+    document.getElementById('btn-confirm-ok').classList.remove('hidden');
+    document.getElementById('custom-confirm').classList.remove('hidden');
+    confirmYesCallback = null;
+    confirmNoCallback = null;
+}
+
+document.getElementById('btn-confirm-yes').addEventListener('click', () => {
+    document.getElementById('custom-confirm').classList.add('hidden');
+    if (confirmYesCallback) confirmYesCallback();
+});
+
+document.getElementById('btn-confirm-no').addEventListener('click', () => {
+    document.getElementById('custom-confirm').classList.add('hidden');
+    if (confirmNoCallback) confirmNoCallback();
+});
+
+document.getElementById('btn-confirm-ok').addEventListener('click', () => {
+    document.getElementById('custom-confirm').classList.add('hidden');
+});
 
 function renderPageNumbers() {
     document.getElementById('btn-prev').disabled = state.page <= 1;

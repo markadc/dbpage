@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DBPage</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=2">
 </head>
 <body>
     <header>
@@ -100,6 +100,19 @@
             </div>
         </div>
 
+        <!-- 自定义提示框 -->
+        <div id="custom-confirm" class="modal hidden">
+            <div class="modal-content" style="width:360px;">
+                <h3 id="confirm-title">提示</h3>
+                <p id="confirm-message" style="margin:16px 0; font-size:14px; color:var(--text);"></p>
+                <div class="modal-actions">
+                    <button id="btn-confirm-yes" class="btn-primary">保存</button>
+                    <button id="btn-confirm-no" class="btn-secondary">取消</button>
+                    <button id="btn-confirm-ok" class="btn-primary hidden" style="flex:1;">确定</button>
+                </div>
+            </div>
+        </div>
+
         <!-- 连接编辑弹窗 -->
         <div id="conn-modal" class="modal hidden">
             <div class="modal-content">
@@ -139,6 +152,6 @@
             </div>
         </div>
     </main>
-    <script src="/static/js/app.js?v=3"></script>
+    <script src="/static/js/app.js?v=8"></script>
 </body>
 </html>
