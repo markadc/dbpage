@@ -1,6 +1,6 @@
 {
   "name": "db-webpage",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A lightweight database data visualization tool for PostgreSQL and MySQL",
   "main": "src/index.js",
   "bin": {

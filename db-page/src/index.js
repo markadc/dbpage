@@ -10,12 +10,26 @@ const mysql = require('mysql2/promise');
 const open = require('open').default;
 
 const app = express();
+const VERSION = require('../package.json').version;
+const DEFAULT_PORT = 12301;
 const CONFIG_DIR = path.join(os.homedir(), '.db-webpage');
 const INIT_FILE = path.join(CONFIG_DIR, 'dbw-cache.json');
 const LEGACY_FILE = path.join(CONFIG_DIR, 'init.json');
 
 function printUsage() {
-    console.error('Usage: dbw [-p <port>]');
+    console.log(`DBWebpage ${VERSION} - a lightweight database data visualization tool
+
+Usage:
+  dbw                  Start server on default port ${DEFAULT_PORT}
+  dbw -p, --port <port>  Start server on specified port
+  dbw -v, --version    Show version
+  dbw -h, --help       Show this help message`);
+}
+
+function argError(message) {
+    console.error(`dbw: ${message}`);
+    console.error('Run \'dbw --help\' for usage.');
+    process.exit(1);
 }
 
 function parsePort(value) {
@@ -26,18 +40,45 @@ function parsePort(value) {
     return port >= 1 && port <= 65535 ? port : null;
 }
 
-function parseCliArgs(args) {
-    if (args.length === 0) {
+function parseCliArgs(argv) {
+    const args = argv.slice(2);
+    const first = args[0];
+
+    if (first === undefined) {
         return { port: null };
     }
-    if (args.length === 2 && args[0] === '-p') {
-        const port = parsePort(args[1]);
-        if (port) {
-            return { port };
+
+    if (first === '-v' || first === '--version') {
+        if (args.length > 1) {
+            argError(`unexpected extra argument '${args[1]}' after '${first}'`);
         }
+        console.log(`db-webpage v${VERSION}`);
+        process.exit(0);
     }
-    printUsage();
-    process.exit(1);
+
+    if (first === '-h' || first === '--help') {
+        if (args.length > 1) {
+            argError(`unexpected extra argument '${args[1]}' after '${first}'`);
+        }
+        printUsage();
+        process.exit(0);
+    }
+
+    if (first === '-p' || first === '--port') {
+        if (args.length === 1) {
+            argError(`'${first}' requires a port number`);
+        }
+        if (args.length > 2) {
+            argError(`unexpected extra argument '${args[2]}'`);
+        }
+        const port = parsePort(args[1]);
+        if (!port) {
+            argError(`invalid port '${args[1]}', must be an integer between 1 and 65535`);
+        }
+        return { port };
+    }
+
+    argError(`unknown argument '${first}'`);
 }
 
 function defaultInit() {
@@ -60,9 +101,9 @@ function ensureInitFile() {
     }
 }
 
-const { port: cliPort } = parseCliArgs(process.argv.slice(2));
+const { port: cliPort } = parseCliArgs(process.argv);
 const envPort = process.env.PORT ? parsePort(process.env.PORT) : null;
-const PORT = cliPort || envPort || 12301;
+const PORT = cliPort || envPort || DEFAULT_PORT;
 
 app.use(express.urlencoded({ extended: true }));
 app.use(session({

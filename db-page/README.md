@@ -22,10 +22,18 @@ dbw
 
 This will start the server on port **12301** and automatically open your browser.
 
-### Custom Port
+### CLI Options
 
 ```bash
-dbw -p 8080
+dbw -v, --version     # Show version
+dbw -h, --help        # Show help
+dbw -p, --port <port> # Start on a custom port, e.g. dbw -p 8080
+```
+
+You can also set the port via the `PORT` environment variable:
+
+```bash
+PORT=8080 dbw
 ```
 
 ## Features
