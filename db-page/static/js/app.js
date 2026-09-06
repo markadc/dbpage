@@ -56,7 +56,12 @@ function renderCards() {
 }
 
 async function useConnection(id) {
-    await fetchJSON(`/api/connections/${id}/use`, { method: 'POST' });
+    try {
+        await fetchJSON(`/api/connections/${id}/use`, { method: 'POST' });
+    } catch (err) {
+        showAlert('连接失败: ' + (err.message || '无法连接到数据库，请检查服务是否启动'));
+        return;
+    }
     currentConnId = id;
     const conn = connections.find(c => c.id === id);
     currentConnType = conn?.type || 'postgresql';

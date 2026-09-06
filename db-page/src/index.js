@@ -185,6 +185,17 @@ function quoteIdentifier(conn_type, name) {
     return `"${name}"`;
 }
 
+/* AggregateError（如 ECONNREFUSED）的 message 为空，需从 errors/code 中提取 */
+function errMessage(e) {
+    if (!e) return 'Unknown error';
+    if (e.message) return e.message;
+    if (e.errors && e.errors.length && e.errors[0].message) {
+        return `${e.code || 'ERROR'}: ${e.errors[0].message}`;
+    }
+    if (e.code) return e.code;
+    return String(e);
+}
+
 async function getPkColumn(conn, conn_type, table) {
     /* 返回单列主键的列名；无主键或复合主键时返回 null */
     try {
@@ -289,7 +300,7 @@ app.post('/api/connections/:conn_id/use', async (req, res) => {
         );
         await db.end();
     } catch (e) {
-        return res.status(400).json({ detail: e.message });
+        return res.status(400).json({ detail: errMessage(e) });
     }
     req.session.conn_id = conn_id;
     req.session.conn_type = conn.type || 'postgresql';
@@ -348,7 +359,7 @@ app.get('/api/databases', async (req, res) => {
             res.json({ databases: result.rows.map(r => r.datname) });
         }
     } catch (e) {
-        res.status(400).json({ detail: e.message });
+        res.status(400).json({ detail: errMessage(e) });
     } finally {
         if (conn) {
             try { await conn.end(); } catch (_) {}
@@ -372,7 +383,7 @@ app.get('/api/tables', async (req, res) => {
             res.json({ tables: result.rows.map(r => r.table_name) });
         }
     } catch (e) {
-        res.status(400).json({ detail: e.message });
+        res.status(400).json({ detail: errMessage(e) });
     } finally {
         if (conn) {
             try { await conn.end(); } catch (_) {}
@@ -437,7 +448,7 @@ app.get('/api/data', async (req, res) => {
             });
         }
     } catch (e) {
-        res.status(400).json({ detail: e.message });
+        res.status(400).json({ detail: errMessage(e) });
     } finally {
         if (conn) {
             try { await conn.end(); } catch (_) {}
@@ -469,7 +480,7 @@ app.put('/api/data', async (req, res) => {
             res.json({ success: true, rowcount: result.rowCount });
         }
     } catch (e) {
-        res.status(400).json({ detail: e.message });
+        res.status(400).json({ detail: errMessage(e) });
     } finally {
         if (conn) {
             try { await conn.end(); } catch (_) {}
@@ -504,7 +515,7 @@ app.post('/api/query', async (req, res) => {
             }
         }
     } catch (e) {
-        res.status(400).json({ detail: e.message });
+        res.status(400).json({ detail: errMessage(e) });
     } finally {
         if (conn) {
             try { await conn.end(); } catch (_) {}
