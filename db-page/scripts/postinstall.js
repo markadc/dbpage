@@ -22,6 +22,10 @@ try {
             fs.writeFileSync(initFile, JSON.stringify({ connections: [], states: {} }, null, 2), 'utf-8');
         }
     }
+    // 迁移完成后清理旧文件，避免残留混淆
+    if (fs.existsSync(legacyFile)) {
+        try { fs.unlinkSync(legacyFile); } catch (_) {}
+    }
 } catch (err) {
     console.warn(`db-webpage: could not initialize ${initFile}: ${err.message}`);
 }

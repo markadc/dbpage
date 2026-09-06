@@ -99,6 +99,10 @@ function ensureInitFile() {
             fs.writeFileSync(INIT_FILE, JSON.stringify(defaultInit(), null, 2), 'utf-8');
         }
     }
+    // 迁移完成后清理旧文件，避免残留混淆
+    if (fs.existsSync(LEGACY_FILE)) {
+        try { fs.unlinkSync(LEGACY_FILE); } catch (_) {}
+    }
 }
 
 const { port: cliPort } = parseCliArgs(process.argv);
