@@ -11,7 +11,8 @@ const open = require('open').default;
 
 const app = express();
 const CONFIG_DIR = path.join(os.homedir(), '.db-webpage');
-const INIT_FILE = path.join(CONFIG_DIR, 'init.json');
+const INIT_FILE = path.join(CONFIG_DIR, 'dbw-cache.json');
+const LEGACY_FILE = path.join(CONFIG_DIR, 'init.json');
 
 function printUsage() {
     console.error('Usage: dbw [-p <port>]');
@@ -45,8 +46,12 @@ function defaultInit() {
 
 function ensureInitFile() {
     fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    // 旧版 init.json 自动迁移为 dbw-cache.json
+    if (!fs.existsSync(INIT_FILE) && fs.existsSync(LEGACY_FILE)) {
+        fs.copyFileSync(LEGACY_FILE, INIT_FILE);
+    }
     if (!fs.existsSync(INIT_FILE)) {
-        const bundledInit = path.join(__dirname, '..', 'init.json');
+        const bundledInit = path.join(__dirname, '..', 'dbw-cache.json');
         if (fs.existsSync(bundledInit)) {
             fs.copyFileSync(bundledInit, INIT_FILE);
         } else {
@@ -137,6 +142,35 @@ function getConnParams(req) {
 function quoteIdentifier(conn_type, name) {
     if (conn_type === 'mysql') return `\`${name}\``;
     return `"${name}"`;
+}
+
+async function getPkColumn(conn, conn_type, table) {
+    /* 返回单列主键的列名；无主键或复合主键时返回 null */
+    try {
+        if (conn_type === 'mysql') {
+            const [rows] = await conn.query(
+                "SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? " +
+                "AND CONSTRAINT_NAME = 'PRIMARY' ORDER BY ORDINAL_POSITION",
+                [table]
+            );
+            const keys = rows.map(r => r.COLUMN_NAME);
+            return keys.length === 1 && keys[0] ? keys[0] : null;
+        } else {
+            const result = await conn.query(
+                "SELECT kcu.column_name FROM information_schema.table_constraints tc " +
+                "JOIN information_schema.key_column_usage kcu " +
+                "ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema " +
+                "WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = 'public' " +
+                "AND tc.table_name = $1 ORDER BY kcu.ordinal_position",
+                [table]
+            );
+            const keys = result.rows.map(r => r.column_name);
+            return keys.length === 1 && keys[0] ? keys[0] : null;
+        }
+    } catch (_) {
+        return null;
+    }
 }
 
 /* ===== 路由 ===== */
@@ -326,13 +360,15 @@ app.get('/api/data', async (req, res) => {
                 const [desc] = await conn.query(`DESCRIBE ${q}`);
                 columns = desc.map(d => d.Field);
             }
+            const pk = await getPkColumn(conn, 'mysql', table);
             res.json({
                 columns,
                 data: rows,
                 total,
                 page: parseInt(page, 10),
                 size: limit,
-                pages: Math.ceil(total / limit)
+                pages: Math.ceil(total / limit),
+                pk
             });
         } else {
             const countResult = await conn.query(`SELECT COUNT(*) as total FROM ${q}`);
@@ -348,13 +384,15 @@ app.get('/api/data', async (req, res) => {
                 );
                 columns = descResult.rows.map(r => r.column_name);
             }
+            const pk = await getPkColumn(conn, 'postgresql', table);
             res.json({
                 columns,
                 data: result.rows,
                 total,
                 page: parseInt(page, 10),
                 size: limit,
-                pages: Math.ceil(total / limit)
+                pages: Math.ceil(total / limit),
+                pk
             });
         }
     } catch (e) {
@@ -433,7 +471,7 @@ app.post('/api/query', async (req, res) => {
     }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '127.0.0.1', () => {
     const url = `http://localhost:${PORT}`;
     console.log(`DBPage running at ${url}`);
     open(url).catch(() => {});

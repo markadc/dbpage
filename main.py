@@ -1,5 +1,6 @@
 import os
 import json
+import threading
 import psycopg2
 import pymysql
 from psycopg2.extras import RealDictCursor
@@ -16,9 +17,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 INIT_FILE = "init.json"
+init_lock = threading.RLock()
 
 
 def load_init():
+    with init_lock:
+        return _load_init_unlocked()
+
+
+def _load_init_unlocked():
     if not os.path.exists(INIT_FILE):
         return {"connections": [], "states": {}}
     with open(INIT_FILE, "r", encoding="utf-8") as f:
@@ -37,8 +44,9 @@ def load_init():
 
 
 def save_init(data):
-    with open(INIT_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    with init_lock:
+        with open(INIT_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 def get_db_connection(conn_type, host, port, user, password, dbname=None):
@@ -73,6 +81,34 @@ def quote_identifier(conn_type, name):
     return f'"{name}"'
 
 
+def get_pk_column(cur, conn_type, table):
+    """返回单列主键的列名；无主键或复合主键时返回 None。"""
+    try:
+        if conn_type == "mysql":
+            cur.execute(
+                "SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s "
+                "AND CONSTRAINT_NAME = 'PRIMARY' ORDER BY ORDINAL_POSITION",
+                (table,),
+            )
+            rows = cur.fetchall()
+            keys = [r.get("COLUMN_NAME") for r in rows]
+        else:
+            cur.execute(
+                "SELECT kcu.column_name FROM information_schema.table_constraints tc "
+                "JOIN information_schema.key_column_usage kcu "
+                "ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema "
+                "WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = 'public' "
+                "AND tc.table_name = %s ORDER BY kcu.ordinal_position",
+                (table,),
+            )
+            rows = cur.fetchall()
+            keys = [r["column_name"] for r in rows]
+        return keys[0] if len(keys) == 1 and keys[0] else None
+    except Exception:
+        return None
+
+
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return templates.TemplateResponse(request, "index.html")
@@ -98,11 +134,12 @@ async def create_connection(
     password: str = Form(...),
 ):
     data = load_init()
-    conns = data["connections"]
-    new_id = str(max([int(c["id"]) for c in conns if c["id"].isdigit()], default=0) + 1)
-    conns.append({"id": new_id, "name": name, "type": conn_type, "host": host, "port": port, "user": user, "password": password})
-    data["connections"] = conns
-    save_init(data)
+    with init_lock:
+        conns = data["connections"]
+        new_id = str(max([int(c["id"]) for c in conns if c["id"].isdigit()], default=0) + 1)
+        conns.append({"id": new_id, "name": name, "type": conn_type, "host": host, "port": port, "user": user, "password": password})
+        data["connections"] = conns
+        save_init(data)
     return {"success": True, "id": new_id}
 
 
@@ -117,21 +154,23 @@ async def update_connection(
     password: str = Form(...),
 ):
     data = load_init()
-    conns = data["connections"]
-    for c in conns:
-        if c["id"] == conn_id:
-            c.update({"name": name, "type": conn_type, "host": host, "port": port, "user": user, "password": password})
-            data["connections"] = conns
-            save_init(data)
-            return {"success": True}
+    with init_lock:
+        conns = data["connections"]
+        for c in conns:
+            if c["id"] == conn_id:
+                c.update({"name": name, "type": conn_type, "host": host, "port": port, "user": user, "password": password})
+                data["connections"] = conns
+                save_init(data)
+                return {"success": True}
     raise HTTPException(status_code=404, detail="连接不存在")
 
 
 @app.delete("/api/connections/{conn_id}")
 async def delete_connection(conn_id: str):
-    data = load_init()
-    data["connections"] = [c for c in data["connections"] if c["id"] != conn_id]
-    save_init(data)
+    with init_lock:
+        data = load_init()
+        data["connections"] = [c for c in data["connections"] if c["id"] != conn_id]
+        save_init(data)
     return {"success": True}
 
 
@@ -158,20 +197,21 @@ async def use_connection(request: Request, conn_id: str):
 
 @app.post("/api/state")
 async def save_state(request: Request, db: str = Form(None), table: str = Form(None), sql: str = Form(None)):
-    conn_id = request.session.get("conn_id")
-    if not conn_id:
+    conn_id_session = request.session.get("conn_id")
+    if not conn_id_session:
         raise HTTPException(status_code=400, detail="未选择连接")
-    data = load_init()
-    if conn_id not in data["states"]:
-        data["states"][conn_id] = {}
-    st = data["states"][conn_id]
-    if db is not None:
-        st["db"] = db
-    if table is not None:
-        st["table"] = table
-    if sql is not None:
-        st["sql"] = sql
-    save_init(data)
+    with init_lock:
+        data = load_init()
+        if conn_id_session not in data["states"]:
+            data["states"][conn_id_session] = {}
+        st = data["states"][conn_id_session]
+        if db is not None:
+            st["db"] = db
+        if table is not None:
+            st["table"] = table
+        if sql is not None:
+            st["sql"] = sql
+        save_init(data)
     return {"success": True}
 
 
@@ -233,6 +273,7 @@ async def get_data(
             cur.execute(f"SELECT * FROM {q} LIMIT %s OFFSET %s", (size, offset))
             rows = cur.fetchall()
             columns = [desc[0] for desc in cur.description] if cur.description else []
+            pk = get_pk_column(cur, params["conn_type"], table)
             return {
                 "columns": columns,
                 "data": [dict(r) for r in rows],
@@ -240,6 +281,7 @@ async def get_data(
                 "page": page,
                 "size": size,
                 "pages": (total + size - 1) // size,
+                "pk": pk,
             }
     finally:
         conn.close()
@@ -298,4 +340,4 @@ async def execute_query(request: Request, db: str = Form(...), sql: str = Form(.
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=22001)
+    uvicorn.run(app, host="127.0.0.1", port=22001)

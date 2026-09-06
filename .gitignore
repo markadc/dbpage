@@ -8,6 +8,7 @@ __pycache__/
 dist/
 build/
 /init.json
+/db-page/dbw-cache.json
 .DS_Store
 .vscode/
 .idea/

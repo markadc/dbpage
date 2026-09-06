@@ -102,8 +102,8 @@ function openAddModal() {
     document.getElementById('modal-type').value = 'postgresql';
     document.getElementById('modal-host').value = 'localhost';
     document.getElementById('modal-port').value = '5432';
-    document.getElementById('modal-user').value = 'wangtuo';
-    document.getElementById('modal-password').value = 'admin0';
+    document.getElementById('modal-user').value = '';
+    document.getElementById('modal-password').value = '';
     document.getElementById('conn-modal').classList.remove('hidden');
 }
 
@@ -195,7 +195,7 @@ async function loadData() {
     if (!data.data.length) {
         tbody.innerHTML = '<tr><td colspan="100" class="empty">暂无数据</td></tr>';
     } else {
-        const pkColumn = data.columns[0];
+        const pkColumn = data.pk || data.columns[0];
         tbody.innerHTML = data.data.map(row => '<tr>' + data.columns.map(c => `<td class="editable-cell">${escapeHtml(String(row[c] ?? ''))}</td>`).join('') + '</tr>').join('');
         tbody.querySelectorAll('tr').forEach((tr, rowIdx) => {
             const pkVal = data.data[rowIdx][pkColumn];

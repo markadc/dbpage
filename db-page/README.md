@@ -47,7 +47,7 @@ dbw -p 8080
 
 ## Configuration
 
-Connection settings and state are stored in `~/.db-webpage/init.json`.
+Connection settings and state are stored in `~/.db-webpage/dbw-cache.json`.
 
 ## License
 

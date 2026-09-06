@@ -79,7 +79,7 @@ chmod +x start.sh
 
 ### 3. 访问应用
 
-打开浏览器访问 👉 `http://localhost:12399`
+打开浏览器访问 👉 `http://localhost:22001`
 
 ---
 
